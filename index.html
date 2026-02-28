@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>내역 코드 체크 시스템</title>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script src="https://apis.google.com/js/api.js"></script>
+<script src="https://accounts.google.com/gsi/client"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@300;400;500;700;900&family=JetBrains+Mono:wght@400;700&display=swap');
 
@@ -501,227 +503,157 @@
   }
   .btn-user-mgmt:hover { background: rgba(245,158,11,0.2); }
 
-  /* ── 두레이 파일 관리 바 ── */
-  .dooray-bar {
+  /* ── Google Drive ── */
+  .gdrive-bar {
     display: flex; align-items: center; gap: 10px;
-    padding: 10px 16px; margin-bottom: 12px;
+    padding: 10px 14px; margin-bottom: 12px;
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 10px; flex-wrap: wrap;
   }
-  .dooray-bar .db-label {
+  .gdrive-bar .gd-label {
     font-size: 11px; font-weight: 700; color: var(--text-muted);
     display: flex; align-items: center; gap: 6px; white-space: nowrap;
   }
-  .db-sep { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; }
+  .gdrive-bar .gd-label svg { flex-shrink: 0; }
+  .gdrive-status {
+    font-size: 11px; display: flex; align-items: center; gap: 5px;
+  }
+  .gd-dot {
+    width: 7px; height: 7px; border-radius: 50%;
+    background: var(--text-dim); flex-shrink: 0;
+  }
+  .gd-dot.connected { background: var(--success); }
+  .btn-gd-connect {
+    padding: 6px 14px; border-radius: 7px; font-size: 11px; font-weight: 600;
+    font-family: 'Noto Sans KR', sans-serif; cursor: pointer; white-space: nowrap;
+    border: 1px solid rgba(66,133,244,0.4);
+    background: rgba(66,133,244,0.08); color: #6ba3ff;
+    transition: all 0.15s;
+  }
+  .btn-gd-connect:hover { background: rgba(66,133,244,0.18); border-color: #6ba3ff; }
+  .btn-gd-disconnect {
+    padding: 5px 12px; border-radius: 7px; font-size: 11px; font-weight: 600;
+    font-family: 'Noto Sans KR', sans-serif; cursor: pointer; white-space: nowrap;
+    border: 1px solid var(--border); background: transparent; color: var(--text-dim);
+    transition: all 0.15s;
+  }
+  .btn-gd-disconnect:hover { border-color: var(--danger); color: var(--danger); }
+  .gd-user-info { font-size: 11px; color: var(--text-muted); }
+  .gd-sep { width: 1px; height: 18px; background: var(--border); flex-shrink: 0; }
 
-  /* upload card 파일 선택 버튼 */
-  .btn-from-dooray {
+  /* upload card 에 Drive 버튼 */
+  .btn-from-drive {
     position: relative; z-index: 2;
     margin-top: 6px; padding: 4px 10px; border-radius: 5px;
     font-size: 10px; font-weight: 600;
     font-family: 'Noto Sans KR', sans-serif; cursor: pointer;
-    border: 1px solid rgba(99,179,237,0.4);
-    background: rgba(99,179,237,0.08); color: #93c5fd;
-    transition: all 0.15s; display: inline-flex; align-items: center; gap: 4px;
+    border: 1px solid rgba(66,133,244,0.35);
+    background: rgba(66,133,244,0.07); color: #6ba3ff;
+    transition: all 0.15s; display: none; align-items: center; gap: 4px;
   }
-  .btn-from-dooray:hover { background: rgba(99,179,237,0.18); }
+  .btn-from-drive.visible { display: inline-flex; }
+  .btn-from-drive:hover { background: rgba(66,133,244,0.18); }
 
-  /* 파일 선택 모달 (공용) */
-  #filePickerModal {
+  /* Drive 파일 선택 모달 */
+  #drivePickerModal {
     position: fixed; inset: 0; z-index: 9100;
     background: rgba(0,0,0,0.75);
     display: none; align-items: center; justify-content: center; padding: 20px;
   }
-  #filePickerModal.open { display: flex; }
-  .fpick-box {
+  #drivePickerModal.open { display: flex; }
+  .dpick-box {
     background: var(--surface); border: 1px solid var(--border);
     border-radius: 16px; padding: 28px 30px;
-    width: min(700px,100%); max-height: 85vh;
+    width: min(680px,100%); max-height: 85vh;
     display: flex; flex-direction: column;
     box-shadow: 0 20px 60px rgba(0,0,0,0.6);
   }
-  .fpick-header {
+  .dpick-header {
     display: flex; align-items: center; justify-content: space-between;
     margin-bottom: 6px; flex-shrink: 0;
   }
-  .fpick-header h3 { font-size: 15px; font-weight: 700; }
-  .fpick-sub {
+  .dpick-header h3 { font-size: 15px; font-weight: 700; }
+  .dpick-sub {
     font-size: 11px; color: var(--text-dim); margin-bottom: 14px;
     font-family: 'JetBrains Mono', monospace; flex-shrink: 0;
   }
-  .fpick-search {
+  .dpick-search {
     display: flex; gap: 8px; margin-bottom: 12px; flex-shrink: 0;
   }
-  .fpick-search input {
+  .dpick-search input {
     flex: 1; padding: 8px 12px;
     background: var(--surface2); border: 1px solid var(--border);
     border-radius: 8px; color: var(--text); font-size: 12px;
     font-family: 'Noto Sans KR', sans-serif; outline: none;
     transition: border-color 0.2s;
   }
-  .fpick-search input:focus { border-color: var(--accent); }
-  .fpick-list {
+  .dpick-search input:focus { border-color: var(--accent); }
+  .dpick-list {
     flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px;
     padding-right: 4px;
   }
-  .fpick-list::-webkit-scrollbar { width: 4px; }
-  .fpick-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-  .fpick-item {
-    display: grid; grid-template-columns: 28px 1fr auto auto;
-    align-items: center; gap: 10px;
-    padding: 10px 14px; background: var(--surface2);
+  .dpick-list::-webkit-scrollbar { width: 4px; }
+  .dpick-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .dpick-item {
+    display: flex; align-items: center; gap: 10px;
+    padding: 10px 12px; background: var(--surface2);
     border: 1px solid var(--border); border-radius: 8px;
     cursor: pointer; transition: border-color 0.15s, background 0.15s;
   }
-  .fpick-item:hover   { border-color: var(--accent); background: rgba(59,130,246,0.05); }
-  .fpick-item.selected { border-color: var(--accent); background: rgba(59,130,246,0.1); }
-  .fpick-icon { font-size: 18px; }
-  .fpick-name { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .fpick-tag  {
-    font-size: 10px; font-weight: 600; padding: 2px 7px; border-radius: 4px;
-    white-space: nowrap;
-  }
-  .fpick-tag-mat   { background: rgba(16,185,129,0.12); color: var(--success); }
-  .fpick-tag-unit  { background: rgba(245,158,11,0.12);  color: var(--warn); }
-  .fpick-tag-std   { background: rgba(168,85,247,0.12);  color: var(--purple); }
-  .fpick-tag-src   { background: rgba(59,130,246,0.12);  color: var(--accent); }
-  .fpick-tag-other { background: rgba(100,116,139,0.12); color: var(--text-dim); }
-  .fpick-date { font-size: 10px; color: var(--text-dim); white-space: nowrap; }
-  .fpick-empty   { text-align: center; padding: 40px; color: var(--text-dim); font-size: 13px; }
-  .fpick-footer {
+  .dpick-item:hover { border-color: var(--accent); background: rgba(59,130,246,0.05); }
+  .dpick-item.selected { border-color: var(--accent); background: rgba(59,130,246,0.1); }
+  .dpick-icon { font-size: 18px; flex-shrink: 0; }
+  .dpick-name { font-size: 12px; font-weight: 500; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .dpick-size { font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+  .dpick-date { font-size: 10px; color: var(--text-dim); white-space: nowrap; }
+  .dpick-empty { text-align: center; padding: 40px; color: var(--text-dim); font-size: 13px; }
+  .dpick-loading { text-align: center; padding: 40px; color: var(--text-dim); font-size: 13px; display: flex; align-items: center; justify-content: center; gap: 10px; }
+  .dpick-footer {
     display: flex; align-items: center; justify-content: space-between;
     margin-top: 14px; flex-shrink: 0; gap: 8px;
   }
-  .fpick-selected-name {
-    font-size: 11px; color: var(--accent); font-weight: 600; flex: 1;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .btn-fpick-ok {
+  .dpick-selected-name { font-size: 11px; color: var(--accent); font-weight: 600; flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .btn-dpick-ok {
     padding: 9px 22px; border-radius: 8px; background: var(--accent); color: white;
     font-size: 12px; font-weight: 700; font-family: 'Noto Sans KR', sans-serif;
     border: none; cursor: pointer; white-space: nowrap; transition: all 0.15s;
   }
-  .btn-fpick-ok:disabled { opacity: 0.35; cursor: not-allowed; }
-  .btn-fpick-ok:not(:disabled):hover { background: #2563eb; transform: translateY(-1px); }
-  .btn-fpick-cancel {
+  .btn-dpick-ok:disabled { opacity: 0.35; cursor: not-allowed; }
+  .btn-dpick-ok:not(:disabled):hover { background: #2563eb; transform: translateY(-1px); }
+  .btn-dpick-cancel {
     padding: 9px 16px; border-radius: 8px; background: transparent;
     color: var(--text-muted); border: 1px solid var(--border);
     font-size: 12px; font-weight: 600; font-family: 'Noto Sans KR', sans-serif;
     cursor: pointer; transition: all 0.15s;
   }
-  .btn-fpick-cancel:hover { border-color: var(--danger); color: var(--danger); }
+  .btn-dpick-cancel:hover { border-color: var(--danger); color: var(--danger); }
 
-  /* 파일 목록 관리 모달 (마스터 전용) */
-  #fileMgmtModal {
+  /* GCP 설정 모달 */
+  #gcpSetupModal {
     position: fixed; inset: 0; z-index: 9200;
-    background: rgba(0,0,0,0.78); display: none;
+    background: rgba(0,0,0,0.8); display: none;
     align-items: center; justify-content: center; padding: 20px;
   }
-  #fileMgmtModal.open { display: flex; }
-  .fmgmt-box {
+  #gcpSetupModal.open { display: flex; }
+  .gcp-box {
     background: var(--surface); border: 1px solid var(--border);
-    border-radius: 16px; padding: 30px 32px;
-    width: min(780px,100%); max-height: 88vh;
-    display: flex; flex-direction: column;
+    border-radius: 16px; padding: 32px 34px; width: min(520px,100%);
     box-shadow: 0 20px 60px rgba(0,0,0,0.6);
   }
-  .fmgmt-header {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: 20px; flex-shrink: 0;
+  .gcp-box h3 { font-size: 15px; font-weight: 700; margin-bottom: 6px; }
+  .gcp-box p  { font-size: 11px; color: var(--text-muted); margin-bottom: 20px; line-height: 1.7; }
+  .gcp-field  { margin-bottom: 14px; }
+  .gcp-field label { display: block; font-size: 11px; font-weight: 600; color: var(--text-muted); margin-bottom: 5px; }
+  .gcp-field input {
+    width: 100%; padding: 9px 13px;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 12px;
+    font-family: 'JetBrains Mono', monospace; outline: none;
+    transition: border-color 0.2s;
   }
-  .fmgmt-header h2 { font-size: 15px; font-weight: 700; }
-  .fmgmt-add-form {
-    display: grid; grid-template-columns: 2fr 1fr 1fr auto;
-    gap: 8px; margin-bottom: 8px;
-    padding-bottom: 18px; border-bottom: 1px solid var(--border); flex-shrink: 0;
-  }
-  .fmgmt-add-form input, .fmgmt-add-form select {
-    padding: 9px 12px; background: var(--surface2);
-    border: 1px solid var(--border); border-radius: 8px;
-    color: var(--text); font-size: 12px;
-    font-family: 'Noto Sans KR', sans-serif; outline: none;
-    transition: border-color 0.2s; width: 100%;
-  }
-  .fmgmt-add-form input:focus, .fmgmt-add-form select:focus { border-color: var(--accent); }
-  .fmgmt-add-form input::placeholder { color: var(--text-dim); }
-  .btn-add-file {
-    padding: 9px 16px; border-radius: 8px; background: var(--success); color: white;
-    font-size: 12px; font-weight: 700; font-family: 'Noto Sans KR', sans-serif;
-    border: none; cursor: pointer; white-space: nowrap; transition: all 0.15s; align-self: end;
-  }
-  .btn-add-file:hover { background: #059669; transform: translateY(-1px); }
-  .fmgmt-list-header {
-    display: grid; grid-template-columns: 1fr 100px 110px 32px;
-    gap: 10px; padding: 6px 14px;
-    font-size: 10px; font-weight: 700; color: var(--text-dim);
-    letter-spacing: 0.5px; text-transform: uppercase; flex-shrink: 0;
-  }
-  .fmgmt-list {
-    flex: 1; overflow-y: auto; display: flex; flex-direction: column; gap: 5px;
-    padding-right: 4px;
-  }
-  .fmgmt-list::-webkit-scrollbar { width: 4px; }
-  .fmgmt-list::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
-  .fmgmt-item {
-    display: grid; grid-template-columns: 1fr 100px 110px 32px;
-    align-items: center; gap: 10px;
-    padding: 10px 14px; background: var(--surface2);
-    border: 1px solid var(--border); border-radius: 8px;
-    transition: border-color 0.15s;
-  }
-  .fmgmt-item:hover { border-color: rgba(59,130,246,0.3); }
-  .fmgmt-name { font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .btn-del-file {
-    width: 28px; height: 28px; border-radius: 6px; display: flex; align-items: center; justify-content: center;
-    background: transparent; border: 1px solid var(--border); color: var(--text-dim);
-    cursor: pointer; font-size: 13px; transition: all 0.15s;
-  }
-  .btn-del-file:hover { border-color: var(--danger); color: var(--danger); background: rgba(239,68,68,0.06); }
-
-  /* 업로드 드래그 영역 */
-  .fmgmt-upload-area {
-    border: 2px dashed var(--border); border-radius: 12px;
-    margin-bottom: 14px; flex-shrink: 0; transition: border-color 0.2s, background 0.2s;
-    cursor: pointer;
-  }
-  .fmgmt-upload-area:hover, .fmgmt-upload-area.drag-over {
-    border-color: var(--accent); background: rgba(59,130,246,0.04);
-  }
-  .fmgmt-drop-inner {
-    padding: 24px; text-align: center; pointer-events: none;
-  }
-
-  /* 대기 파일 목록 */
-  .fmgmt-pending-list {
-    display: flex; flex-direction: column; gap: 6px;
-    max-height: 200px; overflow-y: auto; margin-bottom: 4px;
-  }
-  .fmgmt-pending-item {
-    display: grid; grid-template-columns: 1fr 140px;
-    align-items: center; gap: 10px;
-    padding: 9px 14px; background: rgba(59,130,246,0.05);
-    border: 1px solid rgba(59,130,246,0.2); border-radius: 8px;
-  }
-  .fmgmt-pending-item select {
-    padding: 6px 10px; background: var(--surface2);
-    border: 1px solid var(--border); border-radius: 6px;
-    color: var(--text); font-size: 11px;
-    font-family: 'Noto Sans KR', sans-serif; outline: none;
-  }
-  .fmgmt-pending-item select:focus { border-color: var(--accent); }
-
-  /* 스토리지 바 */
-  .storage-bar-wrap {
-    display: flex; align-items: center; gap: 10px; font-size: 10px; color: var(--text-dim);
-  }
-  .storage-bar-track {
-    flex: 1; height: 4px; background: var(--surface2); border-radius: 2px; overflow: hidden;
-  }
-  .storage-bar-fill {
-    height: 100%; border-radius: 2px; background: var(--accent); transition: width 0.3s;
-  }
-  .storage-bar-fill.warn  { background: var(--warn); }
-  .storage-bar-fill.danger { background: var(--danger); }
+  .gcp-field input:focus { border-color: var(--accent); }
+  .gcp-hint { font-size: 10px; color: var(--text-dim); margin-top: 4px; line-height: 1.6; }
+  .gcp-actions { display: flex; gap: 8px; justify-content: flex-end; margin-top: 20px; }
 
   /* ── Change Password button in header ── */
   .btn-chgpw {
@@ -841,65 +773,59 @@
 </head>
 <body>
 
-<!-- ── 파일 선택 모달 ── -->
-<div id="filePickerModal">
-  <div class="fpick-box">
-    <div class="fpick-header">
-      <h3 id="fpickTitle">📂 파일 선택</h3>
-      <button class="mgmt-close" onclick="closeFilePicker()">✕</button>
+<!-- ── Google Drive 파일 선택 모달 ── -->
+<div id="drivePickerModal">
+  <div class="dpick-box">
+    <div class="dpick-header">
+      <h3>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" style="vertical-align:-3px;margin-right:6px">
+          <path d="M6.5 20L1 11l4.5-8h13L23 11l-5.5 9H6.5z" fill="#4285F4" opacity=".3"/>
+          <path d="M1 11l5.5 9h13L23 11H1z" fill="#4285F4" opacity=".15"/>
+          <path d="M8.5 3L1 11h7l4-8-3.5 0z" fill="#0F9D58"/>
+          <path d="M15.5 3L23 11h-7l-4-8 3.5 0z" fill="#FBBC05"/>
+          <path d="M8 11l4 9 4-9H8z" fill="#EA4335"/>
+        </svg>
+        Google Drive에서 선택
+      </h3>
+      <button class="mgmt-close" onclick="closeDrivePicker()">✕</button>
     </div>
-    <div class="fpick-sub" id="fpickSub">자원파일 서버 저장소</div>
-    <div class="fpick-search">
-      <input type="text" id="fpickSearch" placeholder="파일명 검색..." oninput="filterFileList()">
+    <div class="dpick-sub" id="dpickSub">자원자료 폴더 • xlsx / xlsm / xls 파일</div>
+    <div class="dpick-search">
+      <input type="text" id="dpickSearch" placeholder="파일명 검색..." oninput="filterDriveFiles()">
     </div>
-    <div class="fpick-list" id="fpickList"></div>
-    <div class="fpick-footer">
-      <span class="fpick-selected-name" id="fpickSelectedName"></span>
-      <button class="btn-fpick-cancel" onclick="closeFilePicker()">취소</button>
-      <button class="btn-fpick-ok" id="btnFpickOk" disabled onclick="confirmFilePick()">선택</button>
+    <div class="dpick-list" id="dpickList">
+      <div class="dpick-loading"><div class="spin"></div>불러오는 중...</div>
+    </div>
+    <div class="dpick-footer">
+      <span class="dpick-selected-name" id="dpickSelectedName"></span>
+      <button class="btn-dpick-cancel" onclick="closeDrivePicker()">취소</button>
+      <button class="btn-dpick-ok" id="btnDpickOk" disabled onclick="confirmDrivePick()">선택</button>
     </div>
   </div>
 </div>
 
-<!-- ── 자원파일 업로드 관리 모달 (마스터 전용) ── -->
-<div id="fileMgmtModal">
-  <div class="fmgmt-box">
-    <div class="fmgmt-header">
-      <h2>📤 자원파일 업로드 관리 <span style="color:var(--warn);font-size:11px;margin-left:8px;font-weight:600;">🔑 MASTER 전용</span></h2>
-      <button class="mgmt-close" onclick="closeFileMgmt()">✕</button>
+<!-- ── GCP API 키 설정 모달 ── -->
+<div id="gcpSetupModal">
+  <div class="gcp-box">
+    <h3>⚙️ Google Drive 연동 설정 <span style="font-size:11px;color:var(--warn);font-weight:600;margin-left:8px;">🔑 MASTER 전용</span></h3>
+    <p>Google Drive에서 파일을 불러오려면 Google Cloud Console에서 발급한<br>
+       <b>API 키</b>와 <b>OAuth 클라이언트 ID</b>가 필요합니다.<br>
+       입력한 정보는 이 브라우저의 localStorage에 저장되며, 마스터 계정만 수정할 수 있습니다.</p>
+    <div class="gcp-field">
+      <label>API Key</label>
+      <input type="text" id="gcpApiKey" placeholder="AIza..." autocomplete="off">
+      <div class="gcp-hint">Google Cloud Console → API 및 서비스 → 사용자 인증 정보 → API 키</div>
     </div>
-
-    <!-- 업로드 영역 -->
-    <div id="fmgmtDrop" class="fmgmt-upload-area">
-      <input type="file" id="fmgmtFileInput" accept=".xlsx,.xlsm,.xls" multiple style="display:none"
-             onchange="handleMasterUpload(this.files)">
-      <div class="fmgmt-drop-inner" onclick="document.getElementById('fmgmtFileInput').click()">
-        <div style="font-size:28px;margin-bottom:8px">📤</div>
-        <div style="font-size:13px;font-weight:700;margin-bottom:4px">파일을 드래그하거나 클릭하여 업로드</div>
-        <div style="font-size:11px;color:var(--text-dim)">xlsx / xlsm / xls · 여러 파일 동시 업로드 가능</div>
-      </div>
+    <div class="gcp-field">
+      <label>OAuth 2.0 클라이언트 ID</label>
+      <input type="text" id="gcpClientId" placeholder="xxxxx.apps.googleusercontent.com" autocomplete="off">
+      <div class="gcp-hint">Google Cloud Console → API 및 서비스 → 사용자 인증 정보 → OAuth 2.0 클라이언트 ID<br>
+      승인된 JavaScript 원본에 이 페이지의 URL을 추가해야 합니다.</div>
     </div>
-
-    <!-- 업로드된 파일 구분 설정 행 (업로드 직후 표시) -->
-    <div id="fmgmtPendingArea" style="display:none">
-      <div style="font-size:11px;font-weight:700;color:var(--text-muted);margin-bottom:8px;flex-shrink:0">
-        ⬇ 업로드할 파일 구분 설정 후 저장
-      </div>
-      <div id="fmgmtPendingList" class="fmgmt-pending-list"></div>
-      <div style="display:flex;justify-content:flex-end;gap:8px;margin-top:10px;padding-top:10px;border-top:1px solid var(--border)">
-        <button class="btn-dpick-cancel" onclick="cancelPending()">취소</button>
-        <button class="btn-add-file" onclick="savePendingFiles()">💾 저장</button>
-      </div>
+    <div class="gcp-actions">
+      <button class="btn-dpick-cancel" onclick="closeGcpSetup()">취소</button>
+      <button class="btn-dpick-ok" onclick="saveGcpSetup()">저장 후 연결</button>
     </div>
-
-    <!-- 저장된 파일 목록 -->
-    <div class="fmgmt-list-header" style="margin-top:16px">
-      <span>파일명</span><span>구분</span><span>크기</span><span></span>
-    </div>
-    <div id="fmgmtList" class="fmgmt-list"></div>
-
-    <!-- 스토리지 사용량 -->
-    <div id="fmgmtStorageBar" style="margin-top:12px;flex-shrink:0"></div>
   </div>
 </div>
 
@@ -1018,15 +944,27 @@
     <div class="header-user" id="headerUser"></div>
   </header>
 
-  <!-- 자원파일 관리 바 -->
-  <div class="dooray-bar" id="doorayBar">
-    <span class="db-label">📁 자원파일 관리</span>
-    <span id="dbFileCount" style="font-size:11px;color:var(--text-dim)">파일 0개 등록됨</span>
-    <div class="db-sep"></div>
-    <span id="dbStorageInfo" style="font-size:10px;color:var(--text-dim)"></span>
-    <button class="btn-user-mgmt" id="btnFileMgmt" style="display:none" onclick="openFileMgmt()">
-      📤 자원파일 업로드 관리
-    </button>
+  <!-- Google Drive 연동 바 -->
+  <div class="gdrive-bar" id="gdriveBar">
+    <span class="gd-label">
+      <svg width="15" height="15" viewBox="0 0 24 24" fill="none">
+        <path d="M6.5 20L1 11l4.5-8h13L23 11l-5.5 9H6.5z" fill="#4285F4" opacity=".4"/>
+        <path d="M8.5 3L1 11h7l4-8-3.5 0z" fill="#0F9D58"/>
+        <path d="M15.5 3L23 11h-7l-4-8 3.5 0z" fill="#FBBC05"/>
+        <path d="M8 11l4 9 4-9H8z" fill="#EA4335"/>
+      </svg>
+      Google Drive 연동
+    </span>
+    <div class="gdrive-status">
+      <div class="gd-dot" id="gdDot"></div>
+      <span id="gdStatusText" style="font-size:11px;color:var(--text-dim)">연결되지 않음</span>
+    </div>
+    <div class="gd-sep"></div>
+    <span class="gd-user-info" id="gdUserInfo"></span>
+    <button class="btn-gd-connect"    id="btnGdConnect"    onclick="initGoogleDrive()" style="display:none">🔗 Google 계정 연결</button>
+    <button class="btn-gd-disconnect" id="btnGdDisconnect" onclick="disconnectGoogle()" style="display:none">연결 해제</button>
+    <!-- ⚙️ API 설정은 마스터만 표시 — renderHeaderUser()에서 제어 -->
+    <button class="btn-outline" id="btnGcpSetup" style="padding:5px 11px;font-size:10px;margin-left:auto;display:none" onclick="openGcpSetup()">⚙️ API 설정</button>
   </div>
 
   <!-- Upload -->
@@ -1041,7 +979,6 @@
       </div>
       <div class="uc-desc">검토 대상 원내역 파일</div>
       <div class="uc-fn" id="fn0">파일을 선택하거나 드롭하세요</div>
-      <button class="btn-from-dooray" onclick="openFilePicker(0)">📂 자원파일에서 선택</button>
     </div>
 
     <div class="upload-card" id="drop1">
@@ -1053,7 +990,10 @@
       </div>
       <div class="uc-desc">자재 코드 DB 파일</div>
       <div class="uc-fn" id="fn1">파일을 선택하거나 드롭하세요</div>
-      <button class="btn-from-dooray" onclick="openFilePicker(1)">📂 자원파일에서 선택</button>
+      <button class="btn-from-drive" id="driveBtn1" onclick="openDrivePicker(1)">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M8.5 3L1 11h7l4-8-3.5 0z" fill="#0F9D58"/><path d="M15.5 3L23 11h-7l-4-8 3.5 0z" fill="#FBBC05"/><path d="M8 11l4 9 4-9H8z" fill="#EA4335"/></svg>
+        Drive에서 선택
+      </button>
     </div>
 
     <div class="upload-card" id="drop2">
@@ -1065,7 +1005,10 @@
       </div>
       <div class="uc-desc">일위대가 코드 DB 파일</div>
       <div class="uc-fn" id="fn2">파일을 선택하거나 드롭하세요</div>
-      <button class="btn-from-dooray" onclick="openFilePicker(2)">📂 자원파일에서 선택</button>
+      <button class="btn-from-drive" id="driveBtn2" onclick="openDrivePicker(2)">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M8.5 3L1 11h7l4-8-3.5 0z" fill="#0F9D58"/><path d="M15.5 3L23 11h-7l-4-8 3.5 0z" fill="#FBBC05"/><path d="M8 11l4 9 4-9H8z" fill="#EA4335"/></svg>
+        Drive에서 선택
+      </button>
     </div>
 
     <div class="upload-card" id="drop3">
@@ -1077,7 +1020,10 @@
       </div>
       <div class="uc-desc">표준내역 비교 파일</div>
       <div class="uc-fn" id="fn3">파일을 선택하거나 드롭하세요</div>
-      <button class="btn-from-dooray" onclick="openFilePicker(3)">📂 자원파일에서 선택</button>
+      <button class="btn-from-drive" id="driveBtn3" onclick="openDrivePicker(3)">
+        <svg width="11" height="11" viewBox="0 0 24 24" fill="none"><path d="M8.5 3L1 11h7l4-8-3.5 0z" fill="#0F9D58"/><path d="M15.5 3L23 11h-7l-4-8 3.5 0z" fill="#FBBC05"/><path d="M8 11l4 9 4-9H8z" fill="#EA4335"/></svg>
+        Drive에서 선택
+      </button>
     </div>
 
   </div>
@@ -1119,401 +1065,367 @@
 
 </div>
 
-<!-- ── 자원파일 관리 Script ── -->
+<!-- ── Google Drive Script ── -->
 <script>
 // ══════════════════════════════════════════════════════════════════
-//  자원파일 서버 저장소 — 마스터 업로드 / 사용자 선택
-//  파일 데이터는 base64로 localStorage에 저장됩니다.
-//  localStorage 용량: 도메인당 보통 5~10MB
+//  Google Drive 연동 — 마스터 관리 / 자동 재연결
 // ══════════════════════════════════════════════════════════════════
 
-const FILE_META_KEY   = 'cc_res_meta';   // [{id, name, type, size, addedAt}]
-const FILE_DATA_PREFIX = 'cc_res_data_'; // + id → base64 파일 데이터
+const GCP_STORAGE_KEY  = 'cc_gcp_config';
+const GD_TOKEN_KEY     = 'cc_gd_token';      // 자동 재연결용 토큰 캐시
+const GD_USERINFO_KEY  = 'cc_gd_userinfo';   // 연결된 Google 계정 정보 캐시
+const DRIVE_FOLDER_ID  = '1nJf81_SOPRzP8VfAh5xPba6YHCOz4LBW';
+const DRIVE_SCOPES     = 'https://www.googleapis.com/auth/drive.readonly';
+const TOKEN_EXPIRE_MS  = 55 * 60 * 1000;     // 55분 (구글 토큰 유효 1시간)
 
-const FILE_TYPES = {
-  src:   { label: '원내역',       cls: 'fpick-tag-src',   icon: '📘' },
-  mat:   { label: '자재리스트',   cls: 'fpick-tag-mat',   icon: '📗' },
-  unit:  { label: '일위대가',     cls: 'fpick-tag-unit',  icon: '📙' },
-  std:   { label: '표준내역',     cls: 'fpick-tag-std',   icon: '📓' },
-  other: { label: '기타',         cls: 'fpick-tag-other', icon: '📄' },
-};
-const SLOT_DEFAULT_TYPE = { 0:'src', 1:'mat', 2:'unit', 3:'std' };
-const SLOT_LABELS       = { 0:'원내역', 1:'자재리스트', 2:'일위대가리스트', 3:'표준내역' };
-const SLOT_DOTCLS       = ['c-blue','c-green','c-warn','c-purple'];
+let gdTokenClient  = null;
+let gdAccessToken  = null;
+let gdTokenExpiry  = 0;
+let gdAllFiles     = [];
+let dpickTargetIdx = null;
+let dpickSelected  = null;
+let gapiReady      = false;
 
-let fpickTargetIdx = null;
-let fpickSelected  = null;
-let pendingFiles   = [];   // 업로드 대기 [{name, type, base64, size}]
+// ── 설정 저장/로드 ──────────────────────────────────────────────
+function loadGcpConfig() {
+  try { return JSON.parse(localStorage.getItem(GCP_STORAGE_KEY) || 'null'); } catch { return null; }
+}
+function saveGcpConfig(cfg) {
+  localStorage.setItem(GCP_STORAGE_KEY, JSON.stringify(cfg));
+}
+function loadCachedToken() {
+  try { return JSON.parse(localStorage.getItem(GD_TOKEN_KEY) || 'null'); } catch { return null; }
+}
+function saveCachedToken(token, expiry) {
+  localStorage.setItem(GD_TOKEN_KEY, JSON.stringify({ token, expiry }));
+}
+function clearCachedToken() {
+  localStorage.removeItem(GD_TOKEN_KEY);
+  localStorage.removeItem(GD_USERINFO_KEY);
+}
+function loadCachedUserInfo() {
+  try { return JSON.parse(localStorage.getItem(GD_USERINFO_KEY) || 'null'); } catch { return null; }
+}
+function saveCachedUserInfo(info) {
+  localStorage.setItem(GD_USERINFO_KEY, JSON.stringify(info));
+}
 
-// ── 메타 저장/로드 ────────────────────────────────────────────────
-function loadMeta()        { try { return JSON.parse(localStorage.getItem(FILE_META_KEY)||'[]'); } catch { return []; } }
-function saveMeta(list)    { localStorage.setItem(FILE_META_KEY, JSON.stringify(list)); }
-function loadFileData(id)  { return localStorage.getItem(FILE_DATA_PREFIX + id); }
-function saveFileData(id, b64) { localStorage.setItem(FILE_DATA_PREFIX + id, b64); }
-function deleteFileData(id){ localStorage.removeItem(FILE_DATA_PREFIX + id); }
-function genId()           { return Date.now().toString(36) + Math.random().toString(36).slice(2,6); }
+// ── 권한 제어 — 로그인 후 renderGdriveBar() 호출로 반영 ──────────
+function renderGdriveBar() {
+  if (!currentUser) return;
+  const isMaster   = currentUser.role === 'master';
+  const cfg        = loadGcpConfig();
+  const hasConfig  = !!(cfg && cfg.apiKey && cfg.clientId);
+  const isConnected = !!(gdAccessToken && Date.now() < gdTokenExpiry);
 
-// ── localStorage 사용량 계산 (bytes) ─────────────────────────────
-function calcStorageUsed() {
-  let total = 0;
-  for (const k in localStorage) {
-    if (!Object.prototype.hasOwnProperty.call(localStorage, k)) continue;
-    total += (localStorage[k].length + k.length) * 2;
+  // ⚙️ API 설정 — 마스터만
+  document.getElementById('btnGcpSetup').style.display = isMaster ? '' : 'none';
+
+  // 연결/해제 버튼 — 모든 사용자 (설정이 있을 때만)
+  const showConnect = hasConfig && !isConnected;
+  const showDisconnect = isConnected;
+  document.getElementById('btnGdConnect').style.display    = showConnect    ? '' : 'none';
+  document.getElementById('btnGdDisconnect').style.display = showDisconnect ? '' : 'none';
+
+  // 상태 표시
+  if (isConnected) {
+    const info = loadCachedUserInfo();
+    document.getElementById('gdDot').classList.add('connected');
+    document.getElementById('gdStatusText').textContent = '연결됨';
+    document.getElementById('gdStatusText').style.color = 'var(--success)';
+    document.getElementById('gdUserInfo').textContent   = info ? (info.name || info.email || '') : '';
+    [1,2,3].forEach(i => document.getElementById('driveBtn'+i).classList.add('visible'));
+  } else if (!hasConfig) {
+    document.getElementById('gdDot').classList.remove('connected');
+    document.getElementById('gdStatusText').textContent = isMaster ? 'API 키 미설정 (⚙️ 클릭하여 설정)' : 'Drive 미설정 (관리자 문의)';
+    document.getElementById('gdStatusText').style.color = 'var(--text-dim)';
+    document.getElementById('gdUserInfo').textContent   = '';
+    [1,2,3].forEach(i => document.getElementById('driveBtn'+i).classList.remove('visible'));
+  } else {
+    document.getElementById('gdDot').classList.remove('connected');
+    document.getElementById('gdStatusText').textContent = '연결 필요';
+    document.getElementById('gdStatusText').style.color = 'var(--warn)';
+    document.getElementById('gdUserInfo').textContent   = '';
+    [1,2,3].forEach(i => document.getElementById('driveBtn'+i).classList.remove('visible'));
   }
-  return total;
-}
-function formatSize(bytes) {
-  if (bytes < 1024)        return bytes + 'B';
-  if (bytes < 1048576)     return Math.round(bytes/1024) + 'KB';
-  return (bytes/1048576).toFixed(1) + 'MB';
 }
 
-// ── 자원파일 바 갱신 ──────────────────────────────────────────────
-function updateDoorayBar() {
-  const meta     = loadMeta();
-  const used     = calcStorageUsed();
-  const isMaster = currentUser && currentUser.role === 'master';
-  document.getElementById('dbFileCount').textContent  = '파일 ' + meta.length + '개 저장됨';
-  document.getElementById('dbStorageInfo').textContent = '저장소 사용: ' + formatSize(used);
-  document.getElementById('btnFileMgmt').style.display = isMaster ? '' : 'none';
-}
-
-// ══════════════════════════════════════════════════════════════════
-//  파일 선택 모달 (모든 사용자)
-// ══════════════════════════════════════════════════════════════════
-function openFilePicker(slotIdx) {
-  fpickTargetIdx = slotIdx;
-  fpickSelected  = null;
-  document.getElementById('fpickTitle').textContent       = '📂 ' + SLOT_LABELS[slotIdx] + ' 선택';
-  document.getElementById('fpickSub').textContent         = '자원파일 서버 저장소 • ' + SLOT_LABELS[slotIdx] + ' 파일 먼저 표시';
-  document.getElementById('fpickSearch').value            = '';
-  document.getElementById('fpickSelectedName').textContent = '';
-  document.getElementById('btnFpickOk').disabled          = true;
-  renderFilePickList(loadMeta(), slotIdx);
-  document.getElementById('filePickerModal').classList.add('open');
-}
-function closeFilePicker() {
-  document.getElementById('filePickerModal').classList.remove('open');
-  fpickSelected = null; fpickTargetIdx = null;
-}
-
-function renderFilePickList(meta, slotIdx) {
-  const el = document.getElementById('fpickList');
-  if (!meta.length) {
-    const isMaster = currentUser && currentUser.role === 'master';
-    el.innerHTML = '<div class="fpick-empty">📭 저장된 파일이 없습니다.<br>'
-      + (isMaster
-          ? '<span style="color:var(--accent)">「자원파일 업로드 관리」에서 파일을 업로드하세요.</span>'
-          : '<span style="color:var(--text-dim)">관리자에게 파일 업로드를 요청하세요.</span>')
-      + '</div>';
-    return;
+// ── GCP 설정 모달 — 마스터 전용 ──────────────────────────────────
+function openGcpSetup() {
+  if (!currentUser || currentUser.role !== 'master') {
+    alert('API 설정은 마스터 계정만 변경할 수 있습니다.'); return;
   }
-  const defType = SLOT_DEFAULT_TYPE[slotIdx];
-  const sorted  = [...meta].sort((a,b) => {
-    if (a.type === defType && b.type !== defType) return -1;
-    if (b.type === defType && a.type !== defType) return  1;
-    return a.name.localeCompare(b.name, 'ko');
+  const cfg = loadGcpConfig();
+  document.getElementById('gcpApiKey').value   = cfg?.apiKey    || '';
+  document.getElementById('gcpClientId').value = cfg?.clientId  || '';
+  document.getElementById('gcpSetupModal').classList.add('open');
+}
+function closeGcpSetup() {
+  document.getElementById('gcpSetupModal').classList.remove('open');
+}
+function saveGcpSetup() {
+  if (!currentUser || currentUser.role !== 'master') return;
+  const apiKey   = document.getElementById('gcpApiKey').value.trim();
+  const clientId = document.getElementById('gcpClientId').value.trim();
+  if (!apiKey || !clientId) { alert('API 키와 클라이언트 ID를 모두 입력하세요.'); return; }
+  saveGcpConfig({ apiKey, clientId });
+  clearCachedToken();   // 키 변경 시 기존 토큰 무효화
+  gdAccessToken = null; gdTokenExpiry = 0;
+  closeGcpSetup();
+  initGoogleDrive();    // 저장 즉시 연결 시도
+}
+
+// ── GAPI 초기화 (한 번만) ─────────────────────────────────────────
+function ensureGapiReady(cfg) {
+  return new Promise((resolve, reject) => {
+    if (gapiReady) { resolve(); return; }
+    gapi.load('client', async () => {
+      try {
+        await gapi.client.init({
+          apiKey: cfg.apiKey,
+          discoveryDocs: ['https://www.googleapis.com/discovery/v1/apis/drive/v3/rest']
+        });
+        gapiReady = true;
+        resolve();
+      } catch(e) { reject(e); }
+    });
   });
-  el.innerHTML = sorted.map(f => {
-    const ft   = FILE_TYPES[f.type] || FILE_TYPES.other;
-    const date = f.addedAt ? new Date(f.addedAt).toLocaleDateString('ko-KR') : '';
-    const sz   = f.size ? formatSize(f.size) : '';
-    return '<div class="fpick-item" data-id="' + esc(f.id) + '" onclick="selectFileItem(this,\'' + esc(f.id) + '\')">'
-      + '<span class="fpick-icon">' + ft.icon + '</span>'
-      + '<span class="fpick-name" title="' + esc(f.name) + '">' + esc(f.name) + '</span>'
-      + '<span class="fpick-tag ' + ft.cls + '">' + ft.label + '</span>'
-      + '<span class="fpick-date">' + esc(sz) + (sz && date ? ' · ' : '') + esc(date) + '</span>'
-      + '</div>';
+}
+
+// ── Google Drive 연결 ─────────────────────────────────────────────
+async function initGoogleDrive() {
+  const cfg = loadGcpConfig();
+  if (!cfg?.apiKey || !cfg?.clientId) { openGcpSetup(); return; }
+
+  try {
+    await ensureGapiReady(cfg);
+
+    // ① 캐시된 토큰이 유효하면 재사용 (자동 재연결)
+    const cached = loadCachedToken();
+    if (cached && cached.token && Date.now() < cached.expiry - 60000) {
+      gdAccessToken = cached.token;
+      gdTokenExpiry = cached.expiry;
+      gapi.client.setToken({ access_token: gdAccessToken });
+      const info = loadCachedUserInfo();
+      onGoogleConnected(info);
+      return;
+    }
+
+    // ② 토큰 만료/없음 → 새 토큰 요청 (prompt:'' 로 팝업 최소화)
+    gdTokenClient = google.accounts.oauth2.initTokenClient({
+      client_id: cfg.clientId,
+      scope: DRIVE_SCOPES,
+      prompt: '',   // 이미 동의한 경우 팝업 없이 즉시 발급
+      callback: async (resp) => {
+        if (resp.error) {
+          // prompt:'' 실패 시 명시적 동의창 재시도
+          if (resp.error === 'interaction_required' || resp.error === 'access_denied') {
+            gdTokenClient.requestAccessToken({ prompt: 'consent' });
+          } else {
+            alert('Google 인증 실패: ' + resp.error);
+          }
+          return;
+        }
+        gdAccessToken = resp.access_token;
+        gdTokenExpiry = Date.now() + TOKEN_EXPIRE_MS;
+        gapi.client.setToken({ access_token: gdAccessToken });
+
+        // userinfo 조회 후 캐시
+        try {
+          const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo',
+            { headers: { Authorization: 'Bearer ' + gdAccessToken } });
+          const info = await r.json();
+          saveCachedToken(gdAccessToken, gdTokenExpiry);
+          saveCachedUserInfo(info);
+          onGoogleConnected(info);
+        } catch { onGoogleConnected(null); }
+      }
+    });
+    gdTokenClient.requestAccessToken({ prompt: '' });
+
+  } catch(e) {
+    alert('Google Drive 초기화 실패: ' + e.message);
+  }
+}
+
+function onGoogleConnected(info) {
+  renderGdriveBar();
+  fetchDriveFiles();   // 파일 목록 미리 캐시
+
+  // 토큰 자동 갱신 타이머 (만료 5분 전)
+  const remaining = gdTokenExpiry - Date.now() - 5 * 60 * 1000;
+  if (remaining > 0) {
+    setTimeout(() => {
+      if (gdAccessToken) initGoogleDrive();  // 조용히 재발급
+    }, remaining);
+  }
+}
+
+function disconnectGoogle() {
+  if (gdAccessToken) {
+    try { google.accounts.oauth2.revoke(gdAccessToken, () => {}); } catch {}
+  }
+  gdAccessToken = null; gdTokenExpiry = 0; gdAllFiles = [];
+  clearCachedToken();
+  gapiReady = false;
+  renderGdriveBar();
+}
+
+// ── Drive 파일 목록 ───────────────────────────────────────────────
+async function fetchDriveFiles() {
+  try {
+    const res = await gapi.client.drive.files.list({
+      q: `'${DRIVE_FOLDER_ID}' in parents and trashed=false and ` +
+         `(mimeType='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ` +
+         `or mimeType='application/vnd.ms-excel' or name contains '.xlsm')`,
+      fields: 'files(id,name,size,modifiedTime,mimeType)',
+      orderBy: 'name', pageSize: 200
+    });
+    gdAllFiles = res.result.files || [];
+  } catch(e) {
+    console.error('Drive 목록 조회 실패', e);
+    gdAllFiles = [];
+  }
+}
+
+// ── Drive Picker 모달 ─────────────────────────────────────────────
+const SLOT_LABELS = { 1:'자재리스트', 2:'일위대가리스트', 3:'표준내역' };
+
+async function openDrivePicker(idx) {
+  if (!gdAccessToken || Date.now() >= gdTokenExpiry) {
+    alert('Google Drive 연결이 필요합니다. 연결 버튼을 눌러주세요.'); return;
+  }
+  dpickTargetIdx = idx;
+  dpickSelected  = null;
+  document.getElementById('dpickSelectedName').textContent = '';
+  document.getElementById('btnDpickOk').disabled = true;
+  document.getElementById('dpickSearch').value   = '';
+  document.getElementById('dpickSub').textContent = `자원자료 폴더 • ${SLOT_LABELS[idx]} 선택`;
+  document.getElementById('dpickList').innerHTML =
+    '<div class="dpick-loading"><div class="spin"></div>불러오는 중...</div>';
+  document.getElementById('drivePickerModal').classList.add('open');
+  if (!gdAllFiles.length) await fetchDriveFiles();
+  renderDriveFiles(gdAllFiles);
+}
+
+function closeDrivePicker() {
+  document.getElementById('drivePickerModal').classList.remove('open');
+  dpickSelected = null; dpickTargetIdx = null;
+}
+
+function renderDriveFiles(files) {
+  const el = document.getElementById('dpickList');
+  if (!files.length) {
+    el.innerHTML = '<div class="dpick-empty">📂 xlsx / xlsm / xls 파일이 없습니다</div>'; return;
+  }
+  el.innerHTML = files.map(f => {
+    const ext  = f.name.split('.').pop().toLowerCase();
+    const icon = ext === 'xlsm' ? '📗' : '📊';
+    const kb   = f.size ? (f.size < 1048576 ? Math.round(f.size/1024)+'KB' : (f.size/1048576).toFixed(1)+'MB') : '';
+    const dt   = f.modifiedTime ? new Date(f.modifiedTime).toLocaleDateString('ko-KR') : '';
+    return `<div class="dpick-item" data-id="${esc(f.id)}" data-name="${esc(f.name)}"
+              onclick="selectDriveFile(this,'${esc(f.id)}','${esc(f.name).replace(/'/g,'&#39;')}')">
+              <span class="dpick-icon">${icon}</span>
+              <span class="dpick-name" title="${esc(f.name)}">${esc(f.name)}</span>
+              <span class="dpick-size">${esc(kb)}</span>
+              <span class="dpick-date">${esc(dt)}</span>
+            </div>`;
   }).join('');
 }
 
-function filterFileList() {
-  const q      = document.getElementById('fpickSearch').value.toLowerCase();
-  const meta   = loadMeta();
-  const result = q ? meta.filter(f => f.name.toLowerCase().includes(q)) : meta;
-  renderFilePickList(result, fpickTargetIdx);
-  fpickSelected = null;
-  document.getElementById('fpickSelectedName').textContent = '';
-  document.getElementById('btnFpickOk').disabled = true;
+function filterDriveFiles() {
+  const q = document.getElementById('dpickSearch').value.toLowerCase();
+  renderDriveFiles(gdAllFiles.filter(f => f.name.toLowerCase().includes(q)));
+  dpickSelected = null;
+  document.getElementById('dpickSelectedName').textContent = '';
+  document.getElementById('btnDpickOk').disabled = true;
 }
 
-function selectFileItem(el, id) {
-  document.querySelectorAll('.fpick-item').forEach(e => e.classList.remove('selected'));
+function selectDriveFile(el, id, name) {
+  document.querySelectorAll('.dpick-item').forEach(e => e.classList.remove('selected'));
   el.classList.add('selected');
-  const meta = loadMeta();
-  fpickSelected = meta.find(f => f.id === id) || null;
-  document.getElementById('fpickSelectedName').textContent = fpickSelected ? '✓ ' + fpickSelected.name : '';
-  document.getElementById('btnFpickOk').disabled = !fpickSelected;
+  dpickSelected = { id, name };
+  document.getElementById('dpickSelectedName').textContent = '✓ ' + name;
+  document.getElementById('btnDpickOk').disabled = false;
 }
 
-function confirmFilePick() {
-  if (!fpickSelected || fpickTargetIdx === null) return;
-  const { id, name } = fpickSelected;
-  const fnEl  = document.getElementById('fn'   + fpickTargetIdx);
-  const card  = document.getElementById('drop' + fpickTargetIdx);
-  const dotCl = SLOT_DOTCLS[fpickTargetIdx];
+async function confirmDrivePick() {
+  if (!dpickSelected || dpickTargetIdx === null) return;
+  const { id, name } = dpickSelected;
+  const fnEl  = document.getElementById('fn'   + dpickTargetIdx);
+  const card  = document.getElementById('drop' + dpickTargetIdx);
+  const dotCl = ['c-blue','c-green','c-warn','c-purple'][dpickTargetIdx];
 
-  closeFilePicker();
+  fnEl.textContent = '⏬ 다운로드 중...'; fnEl.className = 'uc-fn';
+  closeDrivePicker();
 
   try {
-    const b64 = loadFileData(id);
-    if (!b64) throw new Error('저장된 파일 데이터가 없습니다.');
-    // base64 → ArrayBuffer
-    const bin = atob(b64);
-    const buf = new Uint8Array(bin.length);
-    for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
-    wbs[fpickTargetIdx] = XLSX.read(buf, { type: 'array' });
-    fnEl.textContent = '✓ [자원파일] ' + name;
+    const fetchRes = await fetch(
+      `https://www.googleapis.com/drive/v3/files/${id}?alt=media`,
+      { headers: { Authorization: 'Bearer ' + gdAccessToken } }
+    );
+    if (!fetchRes.ok) throw new Error('다운로드 실패 (' + fetchRes.status + ')');
+    const buf = await fetchRes.arrayBuffer();
+    wbs[dpickTargetIdx] = XLSX.read(buf, { type: 'array' });
+    fnEl.textContent = '✓ [Drive] ' + name;
     fnEl.className   = 'uc-fn ok';
     card.classList.add('loaded', dotCl);
   } catch(e) {
-    fnEl.textContent = '❌ 로드 실패: ' + e.message;
+    fnEl.textContent = '❌ ' + e.message;
     fnEl.className   = 'uc-fn';
   }
   updateBtns();
 }
 
-// ══════════════════════════════════════════════════════════════════
-//  자원파일 업로드 관리 모달 (마스터 전용)
-// ══════════════════════════════════════════════════════════════════
-function openFileMgmt() {
-  if (!currentUser || currentUser.role !== 'master') {
-    alert('자원파일 업로드 관리는 마스터 계정만 가능합니다.'); return;
-  }
-  pendingFiles = [];
-  document.getElementById('fmgmtPendingArea').style.display = 'none';
-  document.getElementById('fmgmtFileInput').value = '';
-  renderFmgmtList();
-  renderStorageBar();
-  document.getElementById('fileMgmtModal').classList.add('open');
-  initDropZone();
-}
-function closeFileMgmt() {
-  document.getElementById('fileMgmtModal').classList.remove('open');
-  pendingFiles = [];
-}
+// ── 앱 시작 시 자동 재연결 시도 ───────────────────────────────────
+// doLogin() 완료 후 호출됨 (renderHeaderUser 다음)
+async function tryAutoReconnectDrive() {
+  const cfg    = loadGcpConfig();
+  if (!cfg?.apiKey || !cfg?.clientId) { renderGdriveBar(); return; }
 
-// 드래그&드롭 초기화
-function initDropZone() {
-  const zone = document.getElementById('fmgmtDrop');
-  zone.ondragover  = (e) => { e.preventDefault(); zone.classList.add('drag-over'); };
-  zone.ondragleave = ()  => { zone.classList.remove('drag-over'); };
-  zone.ondrop      = (e) => {
-    e.preventDefault(); zone.classList.remove('drag-over');
-    handleMasterUpload(e.dataTransfer.files);
-  };
-}
-
-// 파일 읽기 → 대기 목록에 추가
-// ArrayBuffer → base64 (청크 방식 — 스택 오버플로우 방지)
-function arrayBufferToBase64(buffer) {
-  const bytes  = new Uint8Array(buffer);
-  const CHUNK  = 8192;
-  let binary   = '';
-  for (let i = 0; i < bytes.length; i += CHUNK) {
-    binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
-  }
-  return btoa(binary);
-}
-
-function handleMasterUpload(fileList) {
-  if (!fileList || !fileList.length) return;
-  const validExts = ['xlsx','xlsm','xls'];
-  const tasks = Array.from(fileList).filter(f => {
-    const ext = f.name.split('.').pop().toLowerCase();
-    return validExts.includes(ext);
-  });
-  if (!tasks.length) { alert('xlsx / xlsm / xls 파일만 업로드 가능합니다.'); return; }
-
-  // 읽는 중 표시
-  const dropInner = document.querySelector('.fmgmt-drop-inner');
-  const origHtml  = dropInner.innerHTML;
-  dropInner.innerHTML = '<div class="spin" style="margin:0 auto 8px"></div>'
-    + '<div style="font-size:12px;color:var(--text-muted)">파일 읽는 중...</div>';
-
-  let done = 0;
-  pendingFiles = [];   // 이전 대기 초기화
-
-  tasks.forEach(file => {
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      try {
-        const b64 = arrayBufferToBase64(e.target.result);
-        // 파일명에서 구분 자동 추정
-        const lower = file.name.toLowerCase();
-        let guessType = 'other';
-        if      (lower.includes('원내역') || lower.includes('원_내역'))      guessType = 'src';
-        else if (lower.includes('자재'))                                     guessType = 'mat';
-        else if (lower.includes('일위대가') || lower.includes('일위'))       guessType = 'unit';
-        else if (lower.includes('표준'))                                     guessType = 'std';
-        pendingFiles.push({ name: file.name, type: guessType, base64: b64, size: file.size });
-      } catch(err) {
-        console.error('파일 읽기 오류:', file.name, err);
-      }
-      done++;
-      if (done === tasks.length) {
-        dropInner.innerHTML = origHtml;   // 원래 UI 복원
-        if (pendingFiles.length) showPendingArea();
-        else alert('파일을 읽지 못했습니다. 다시 시도하세요.');
-      }
-    };
-    reader.onerror = () => {
-      done++;
-      if (done === tasks.length) {
-        dropInner.innerHTML = origHtml;
-        if (pendingFiles.length) showPendingArea();
-      }
-    };
-    reader.readAsArrayBuffer(file);
-  });
-}
-
-function showPendingArea() {
-  document.getElementById('fmgmtPendingArea').style.display = '';
-  const el = document.getElementById('fmgmtPendingList');
-  el.innerHTML = pendingFiles.map((f, i) =>
-    '<div class="fmgmt-pending-item">'
-    + '<span style="font-size:12px;font-weight:500;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="' + esc(f.name) + '">'
-    + '📄 ' + esc(f.name) + ' <span style="color:var(--text-dim);font-size:10px">(' + formatSize(f.size) + ')</span></span>'
-    + '<select onchange="pendingFiles[' + i + '].type=this.value">'
-    + Object.entries(FILE_TYPES).map(([k,v]) =>
-        '<option value="' + k + '"' + (f.type===k?' selected':'') + '>' + v.label + '</option>'
-      ).join('')
-    + '</select>'
-    + '</div>'
-  ).join('');
-}
-
-function cancelPending() {
-  pendingFiles = [];
-  document.getElementById('fmgmtPendingArea').style.display = 'none';
-  document.getElementById('fmgmtFileInput').value = '';
-}
-
-function savePendingFiles() {
-  if (!pendingFiles.length) return;
-
-  // 저장 전 용량 사전 체크 (base64는 원본의 약 1.37배)
-  const totalNewBytes = pendingFiles.reduce((s, f) => s + f.base64.length * 2, 0);
-  const usedBytes     = calcStorageUsed();
-  const MAX_BYTES     = 4.5 * 1024 * 1024; // 안전 상한 4.5MB
-
-  if (usedBytes + totalNewBytes > MAX_BYTES) {
-    const need = formatSize(totalNewBytes);
-    const avail = formatSize(Math.max(0, MAX_BYTES - usedBytes));
-    alert(`저장 공간 부족!\n필요: ${need} / 여유: ${avail}\n\n기존 파일을 일부 삭제 후 다시 시도하세요.`);
-    return;
-  }
-
-  const meta   = loadMeta();
-  const saved  = [];
-  const errors = [];
-
-  for (const f of pendingFiles) {
-    const id = genId();
+  const cached = loadCachedToken();
+  if (!cached?.token || Date.now() >= cached.expiry - 60000) {
+    // 토큰 없거나 만료 — 조용히 갱신 시도 (prompt:'')
     try {
-      saveFileData(id, f.base64);
-      meta.push({ id, name: f.name, type: f.type, size: f.size, addedAt: new Date().toISOString() });
-      saved.push(f.name);
-    } catch(err) {
-      // QuotaExceededError 등 저장 실패
-      deleteFileData(id);   // 중간 저장 rollback
-      errors.push(f.name + ' — ' + (err.name === 'QuotaExceededError' ? '저장 공간 초과' : err.message));
-    }
-  }
-
-  if (saved.length) saveMeta(meta);
-
-  pendingFiles = [];
-  document.getElementById('fmgmtPendingArea').style.display = 'none';
-  document.getElementById('fmgmtFileInput').value = '';
-  renderFmgmtList();
-  renderStorageBar();
-  updateDoorayBar();
-
-  if (errors.length) {
-    alert('일부 파일 저장 실패:\n' + errors.join('\n'));
-  } else if (saved.length) {
-    // 성공 토스트
-    showToast('✅ ' + saved.length + '개 파일 저장 완료', 'success');
-  }
-}
-
-// 파일 구분 변경 (저장된 파일)
-function changeFileType(id, newType) {
-  const meta = loadMeta();
-  const f = meta.find(m => m.id === id);
-  if (f) { f.type = newType; saveMeta(meta); }
-}
-
-// 파일 삭제
-function deleteResFile(id) {
-  if (!confirm('파일을 삭제하시겠습니까?\n삭제된 파일은 복구할 수 없습니다.')) return;
-  const meta = loadMeta().filter(f => f.id !== id);
-  saveMeta(meta);
-  deleteFileData(id);
-  renderFmgmtList();
-  renderStorageBar();
-  updateDoorayBar();
-}
-
-function renderFmgmtList() {
-  const meta = loadMeta();
-  const el   = document.getElementById('fmgmtList');
-  if (!meta.length) {
-    el.innerHTML = '<div style="text-align:center;color:var(--text-dim);font-size:12px;padding:28px">업로드된 파일이 없습니다</div>';
+      await ensureGapiReady(cfg);
+      gdTokenClient = google.accounts.oauth2.initTokenClient({
+        client_id: cfg.clientId,
+        scope: DRIVE_SCOPES,
+        prompt: '',
+        callback: async (resp) => {
+          if (resp.error) { renderGdriveBar(); return; }   // 실패해도 조용히
+          gdAccessToken = resp.access_token;
+          gdTokenExpiry = Date.now() + TOKEN_EXPIRE_MS;
+          gapi.client.setToken({ access_token: gdAccessToken });
+          try {
+            const r = await fetch('https://www.googleapis.com/oauth2/v3/userinfo',
+              { headers: { Authorization: 'Bearer ' + gdAccessToken } });
+            const info = await r.json();
+            saveCachedToken(gdAccessToken, gdTokenExpiry);
+            saveCachedUserInfo(info);
+          } catch {}
+          onGoogleConnected(loadCachedUserInfo());
+        }
+      });
+      gdTokenClient.requestAccessToken({ prompt: '' });
+    } catch { renderGdriveBar(); }
     return;
   }
-  el.innerHTML = meta.map(f => {
-    const ft  = FILE_TYPES[f.type] || FILE_TYPES.other;
-    const sz  = f.size ? formatSize(f.size) : '';
-    const dt  = f.addedAt ? new Date(f.addedAt).toLocaleDateString('ko-KR') : '';
-    return '<div class="fmgmt-item">'
-      + '<div><div class="fmgmt-name" title="' + esc(f.name) + '">' + ft.icon + ' ' + esc(f.name) + '</div>'
-      + '<div style="font-size:10px;color:var(--text-dim);margin-top:2px">' + esc(sz) + (sz && dt ? ' · ' : '') + esc(dt) + '</div></div>'
-      + '<select onchange="changeFileType(\'' + esc(f.id) + '\',this.value)" style="padding:5px 8px;background:var(--surface2);border:1px solid var(--border);border-radius:6px;color:var(--text);font-size:11px;font-family:\'Noto Sans KR\',sans-serif;outline:none">'
-      + Object.entries(FILE_TYPES).map(([k,v]) =>
-          '<option value="' + k + '"' + (f.type===k?' selected':'') + '>' + v.label + '</option>'
-        ).join('')
-      + '</select>'
-      + '<span style="font-size:10px;color:var(--text-dim);white-space:nowrap">' + esc(sz) + '</span>'
-      + '<button class="btn-del-file" onclick="deleteResFile(\'' + esc(f.id) + '\')" title="삭제">✕</button>'
-      + '</div>';
-  }).join('');
+
+  // 캐시 유효 — 바로 복원
+  gdAccessToken = cached.token;
+  gdTokenExpiry = cached.expiry;
+  try {
+    await ensureGapiReady(cfg);
+    gapi.client.setToken({ access_token: gdAccessToken });
+    onGoogleConnected(loadCachedUserInfo());
+  } catch { renderGdriveBar(); }
 }
 
-function renderStorageBar() {
-  const used   = calcStorageUsed();
-  const maxBytes = 5 * 1024 * 1024; // 5MB 기준
-  const pct    = Math.min(100, Math.round(used / maxBytes * 100));
-  const cls    = pct > 85 ? 'danger' : pct > 65 ? 'warn' : '';
-  document.getElementById('fmgmtStorageBar').innerHTML =
-    '<div class="storage-bar-wrap">'
-    + '<span>저장소</span>'
-    + '<div class="storage-bar-track"><div class="storage-bar-fill ' + cls + '" style="width:' + pct + '%"></div></div>'
-    + '<span>' + formatSize(used) + ' / ~5MB</span>'
-    + '</div>';
-}
-
-// ── 토스트 알림 ──────────────────────────────────────────────────
-function showToast(msg, type) {
-  const t = document.createElement('div');
-  const color = type === 'success' ? 'var(--success)' : type === 'warn' ? 'var(--warn)' : 'var(--accent)';
-  t.style.cssText = 'position:fixed;bottom:28px;left:50%;transform:translateX(-50%);'
-    + 'background:var(--surface);border:1px solid ' + color + ';border-radius:10px;'
-    + 'padding:12px 22px;z-index:9999;box-shadow:0 6px 24px rgba(0,0,0,0.45);'
-    + 'font-size:12px;font-weight:600;color:' + color + ';white-space:nowrap;';
-  t.textContent = msg;
-  document.body.appendChild(t);
-  setTimeout(() => t.remove(), 3000);
-}
-
-// ── 모달 외부 클릭 닫기 ─────────────────────────────────────────
-document.getElementById('filePickerModal').addEventListener('click', function(e){ if(e.target===this) closeFilePicker(); });
-document.getElementById('fileMgmtModal').addEventListener('click',   function(e){ if(e.target===this) closeFileMgmt(); });
+// 모달 외부 클릭
+document.getElementById('drivePickerModal').addEventListener('click', function(e){ if(e.target===this) closeDrivePicker(); });
+document.getElementById('gcpSetupModal').addEventListener('click',    function(e){ if(e.target===this) closeGcpSetup(); });
 </script>
-
-
 
 <script>
 // ── Shared Utils (must be first) ──────────────────────────────────
@@ -1576,7 +1488,7 @@ function doLogin() {
   currentUser = user;
   document.getElementById('loginOverlay').style.display = 'none';
   renderHeaderUser();
-  updateDoorayBar();   // 두레이 바 권한 갱신
+  tryAutoReconnectDrive();   // 로그인 후 Drive 자동 재연결 시도
 }
 
 function doLogout() {
@@ -1586,7 +1498,11 @@ function doLogout() {
   document.getElementById('loginError').textContent = '';
   document.getElementById('loginOverlay').style.display = 'flex';
   document.getElementById('headerUser').innerHTML = '';
-  document.getElementById('btnFileMgmt').style.display = 'none';
+  // Drive 버튼 숨기기 (연결은 유지 — 다음 로그인 시 자동 복원)
+  [1,2,3].forEach(i => document.getElementById('driveBtn'+i).classList.remove('visible'));
+  document.getElementById('btnGdConnect').style.display    = 'none';
+  document.getElementById('btnGdDisconnect').style.display = 'none';
+  document.getElementById('btnGcpSetup').style.display     = 'none';
   resetAll();
 }
 
@@ -1869,33 +1785,124 @@ let curFilter = 'all';
 let curSearch = '';
 
 // ── File Drop Setup ──────────────────────────────────────────────
-[0,1,2,3].forEach(i => {
-  const inp  = document.getElementById('file'+i);
-  const card = document.getElementById('drop'+i);
-  const fnEl = document.getElementById('fn'+i);
+// 슬롯별 레이블
+const SLOT_NAME = ['원내역','자재리스트','일위대가리스트','표준내역'];
 
-  inp.addEventListener('change', e => { if(e.target.files[0]) loadWb(e.target.files[0],i,fnEl,card); });
-  card.addEventListener('dragover', e => { e.preventDefault(); card.classList.add('drag-over'); });
-  card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
-  card.addEventListener('drop', e => {
-    e.preventDefault(); card.classList.remove('drag-over');
-    if(e.dataTransfer.files[0]) loadWb(e.dataTransfer.files[0],i,fnEl,card);
-  });
-});
+// 파일 종류 자동 판별 ─────────────────────────────────────────────
+// 반환값: 0=원내역, 1=자재리스트, 2=일위대가리스트, 3=표준내역, -1=불명
+function detectFileType(wb) {
+  const sheetNames = wb.SheetNames.map(s => s.replace(/\s/g,'').toLowerCase());
 
-function loadWb(file, i, fnEl, card) {
-  fnEl.textContent = '로딩 중...'; fnEl.className = 'uc-fn';
+  // ① 시트명 키워드 판별
+  const matKw   = ['자재','자재리스트','material'];
+  const unitKw  = ['일위대가','일위','단가','unitprice'];
+  const stdKw   = ['표준내역','표준','standard'];
+  const srcKw   = ['원내역','내역','원_내역','source'];
+
+  if (sheetNames.some(s => matKw.some(k  => s.includes(k))))  return 1;
+  if (sheetNames.some(s => unitKw.some(k => s.includes(k))))  return 2;
+  if (sheetNames.some(s => stdKw.some(k  => s.includes(k))))  return 3;
+  if (sheetNames.some(s => srcKw.some(k  => s.includes(k))))  return 0;
+
+  // ② 첫 번째 시트 헤더 행 분석 (코드 컬럼 존재 여부)
+  for (const sn of wb.SheetNames) {
+    const rows = XLSX.utils.sheet_to_json(wb.Sheets[sn], {header:1, defval:'', range:0});
+    if (!rows || !rows.length) continue;
+    // 헤더 10행 이내 탐색
+    for (let r = 0; r < Math.min(10, rows.length); r++) {
+      const rowStr = rows[r].map(c => String(c||'').replace(/\s/g,'').toLowerCase()).join(',');
+      if (rowStr.includes('자재') && rowStr.includes('코드')) return 1;
+      if (rowStr.includes('일위') && rowStr.includes('코드')) return 2;
+      if (rowStr.includes('표준') && rowStr.includes('코드')) return 3;
+    }
+  }
+
+  // ③ 판별 불가 → 원내역으로 기본 처리
+  return 0;
+}
+
+// 슬롯에 파일 세팅
+function setSlot(slotIdx, wb, fileName) {
+  wbs[slotIdx] = wb;
+  const fnEl = document.getElementById('fn'   + slotIdx);
+  const card  = document.getElementById('drop' + slotIdx);
+  // 이전 색상 클래스 제거 후 재적용
+  dotCls.forEach(c => card.classList.remove(c));
+  card.classList.add('loaded', dotCls[slotIdx]);
+  fnEl.textContent = '✓ ' + fileName;
+  fnEl.className   = 'uc-fn ok';
+}
+
+// 슬롯 초기화
+function clearSlot(slotIdx) {
+  wbs[slotIdx] = null;
+  const fnEl = document.getElementById('fn'   + slotIdx);
+  const card  = document.getElementById('drop' + slotIdx);
+  dotCls.forEach(c => card.classList.remove(c));
+  card.classList.remove('loaded');
+  fnEl.textContent = '파일을 선택하거나 드롭하세요';
+  fnEl.className   = 'uc-fn';
+}
+
+// 파일 로드 + 자동 판별 후 올바른 슬롯에 배치
+function loadWb(file, hintSlot) {
   const r = new FileReader();
   r.onload = e => {
+    let wb;
     try {
-      wbs[i] = XLSX.read(e.target.result, {type:'array'});
-      fnEl.textContent = '✓ '+file.name; fnEl.className = 'uc-fn ok';
-      card.classList.add('loaded', dotCls[i]);
-    } catch(err) { fnEl.textContent = '❌ '+err.message; }
+      wb = XLSX.read(e.target.result, {type:'array'});
+    } catch(err) {
+      const fnEl = document.getElementById('fn' + hintSlot);
+      fnEl.textContent = '❌ ' + err.message;
+      fnEl.className   = 'uc-fn';
+      updateBtns(); return;
+    }
+
+    const detected = detectFileType(wb);
+
+    // 판별 결과가 힌트(드롭한 카드)와 다를 때 확인
+    if (detected !== hintSlot) {
+      const detectedName = SLOT_NAME[detected];
+      const hintName     = SLOT_NAME[hintSlot];
+      const msg = `파일 분석 결과 「${detectedName}」로 판별되었습니다.\n\n`
+        + `• 「${detectedName}」 슬롯에 배치: 확인\n`
+        + `• 「${hintName}」 슬롯에 그대로: 취소`;
+      const useDetected = confirm(msg);
+      const targetSlot  = useDetected ? detected : hintSlot;
+
+      // 대상 슬롯에 이미 파일이 있으면 덮어쓸지 확인
+      if (wbs[targetSlot]) {
+        if (!confirm(`「${SLOT_NAME[targetSlot]}」에 이미 파일이 있습니다. 교체하시겠습니까?`)) {
+          updateBtns(); return;
+        }
+        clearSlot(targetSlot);
+      }
+      setSlot(targetSlot, wb, file.name);
+    } else {
+      // 판별 일치 → 바로 배치 (기존 파일 있으면 교체)
+      if (wbs[hintSlot]) clearSlot(hintSlot);
+      setSlot(hintSlot, wb, file.name);
+    }
     updateBtns();
   };
   r.readAsArrayBuffer(file);
 }
+
+// 카드별 이벤트 등록
+[0,1,2,3].forEach(i => {
+  const inp  = document.getElementById('file'+i);
+  const card = document.getElementById('drop'+i);
+
+  inp.addEventListener('change', e => {
+    if (e.target.files[0]) loadWb(e.target.files[0], i);
+  });
+  card.addEventListener('dragover',  e => { e.preventDefault(); card.classList.add('drag-over'); });
+  card.addEventListener('dragleave', () => card.classList.remove('drag-over'));
+  card.addEventListener('drop', e => {
+    e.preventDefault(); card.classList.remove('drag-over');
+    if (e.dataTransfer.files[0]) loadWb(e.dataTransfer.files[0], i);
+  });
+});
 
 function updateBtns() {
   document.getElementById('btnCode').disabled = !(wbs[0] && (wbs[1]||wbs[2]));
@@ -2333,11 +2340,7 @@ function exportResult(){
 // ── Reset ────────────────────────────────────────────────────────
 function resetAll(){
   [0,1,2,3].forEach(i=>{
-    wbs[i]=null;
-    document.getElementById('fn'+i).textContent='파일을 선택하거나 드롭하세요';
-    document.getElementById('fn'+i).className='uc-fn';
-    const c=document.getElementById('drop'+i);
-    c.classList.remove('loaded','c-blue','c-green','c-warn','c-purple');
+    clearSlot(i);
     document.getElementById('file'+i).value='';
   });
   codeRes=[]; stdRes=[]; curTab=''; curFilter='all'; curSearch='';
